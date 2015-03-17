@@ -2,7 +2,7 @@ var CachingWriter = require('broccoli-caching-writer');
 var esperanto = require('esperanto');
 var path = require('path');
 var mkdirp = require('mkdirp');
-var fs = require('fs');
+var fs = require('fs-extra');
 var helpers = require('broccoli-kitchen-sink-helpers');
 var walkSync = require('walk-sync');
 var RSVP = require('rsvp');
@@ -43,6 +43,7 @@ module.exports = CachingWriter.extend({
   init: function() {
     this._transpilerCache = {};
     this.toFormat = esperanto[formatToFunctionName[this.format]];
+    this.depGraph = {};
 
     if (this.format === 'umd' && !this.bundleOptions) {
       throw new Error(umdMesssage);
@@ -200,6 +201,9 @@ module.exports = CachingWriter.extend({
     var moduleName = relativePath.slice(0, relativePath.length - (ext.length + 1));
     var fullInputPath = path.join(inDir, relativePath);
     var fullOutputPath = path.join(outDir, moduleName + '.' + this.targetExtension);
+    var root = relativePath.split('/')[0];
+    var graphPath = path.join(outDir, root, 'dep-graph.json');
+    var json;
 
     var entry = this._transpileThroughCache(
       moduleName,
@@ -208,6 +212,17 @@ module.exports = CachingWriter.extend({
     );
 
     mkdirp.sync(path.dirname(fullOutputPath));
+
+    if (fs.existsSync(graphPath)) {
+      json = fs.readJsonSync(graphPath);
+      json[relativePath] = entry.mod.deps;
+      fs.outputJsonSync(graphPath, json);
+    } else {
+      json = {};
+      json[relativePath] = entry.mod.deps;
+      fs.outputJsonSync(graphPath, json);
+    }
+
     fs.writeFileSync(fullOutputPath, entry.output);
   },
 
@@ -228,11 +243,13 @@ module.exports = CachingWriter.extend({
       return newCache[key] = entry;
     }
     try {
-      return newCache[key] = {
-        output: this.toFormat(
+      var mod = this.toFormat(
           source,
           this._generateEsperantoOptions(moduleName)
-        ).code
+      );
+      return newCache[key] = {
+        output: mod.code,
+        mod: mod
       };
     } catch(err) {
       err.file = moduleName;
