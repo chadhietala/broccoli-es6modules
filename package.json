@@ -12,7 +12,7 @@
   "dependencies": {
     "broccoli-caching-writer": "0.5.3",
     "broccoli-kitchen-sink-helpers": "^0.2.5",
-    "esperanto": "^0.6.8",
+    "esperanto": "git://github.com/chadhietala/esperanto.git#dep-export",
     "fs-extra": "^0.16.5",
     "mkdirp": "^0.5.0",
     "rsvp": "^3.0.16",
