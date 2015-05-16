@@ -180,15 +180,26 @@ module.exports = CachingWriter.extend({
     // and populated with newly generated or previously cached
     // values. It becomes the new cache;
     var _newTranspilerCache = {};
-
-    walkSync(inDir)
-      .forEach(function(relativePath) {
+    var paths = walkSync(inDir);
+    var depGraphPath = this._depGraphPath(paths, outDir);
+    
+    paths.forEach(function(relativePath) {
         if (this._shouldProcessFile(relativePath)) {
           this._handleFile(inDir, outDir, relativePath, _newTranspilerCache);
         }
       }, this);
 
+    if (this.exportDepGraph && depGraphPath) {
+      fs.outputJsonSync(depGraphPath, this.depGraph);
+    }
+    
     this._transpilerCache = _newTranspilerCache;
+  },
+
+  _depGraphPath: function(paths, outDir) {
+    if (paths.length > 0 && paths[0].slice(-1) === '/') {
+      return outDir + '/' + paths[0] + 'dep-graph.json';
+    }
   },
 
   /**
@@ -202,8 +213,6 @@ module.exports = CachingWriter.extend({
     var fullInputPath = path.join(inDir, relativePath);
     var fullOutputPath = path.join(outDir, moduleName + '.' + this.targetExtension);
     var root = relativePath.split('/')[0];
-    var graphPath = path.join(outDir, root, 'dep-graph.json');
-    var json;
 
     var entry = this._transpileThroughCache(
       moduleName,
@@ -213,15 +222,7 @@ module.exports = CachingWriter.extend({
 
     mkdirp.sync(path.dirname(fullOutputPath));
 
-    if (fs.existsSync(graphPath)) {
-      json = fs.readJsonSync(graphPath);
-      json[relativePath] = entry.mod.deps;
-      fs.outputJsonSync(graphPath, json);
-    } else {
-      json = {};
-      json[relativePath] = entry.mod.deps;
-      fs.outputJsonSync(graphPath, json);
-    }
+    this.depGraph[relativePath] = entry.mod.deps;
 
     fs.writeFileSync(fullOutputPath, entry.output);
   },
