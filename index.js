@@ -182,7 +182,7 @@ module.exports = CachingWriter.extend({
     var _newTranspilerCache = {};
     var paths = walkSync(inDir);
     var depGraphPath = this._depGraphPath(paths, outDir);
-    
+
     paths.forEach(function(relativePath) {
         if (this._shouldProcessFile(relativePath)) {
           this._handleFile(inDir, outDir, relativePath, _newTranspilerCache);
@@ -212,7 +212,6 @@ module.exports = CachingWriter.extend({
     var moduleName = relativePath.slice(0, relativePath.length - (ext.length + 1));
     var fullInputPath = path.join(inDir, relativePath);
     var fullOutputPath = path.join(outDir, moduleName + '.' + this.targetExtension);
-    var root = relativePath.split('/')[0];
 
     var entry = this._transpileThroughCache(
       moduleName,
@@ -258,12 +257,16 @@ module.exports = CachingWriter.extend({
     }
   },
 
+  _generatePrefixedModule: function(prefix, moduleName) {
+
+  },
+
   _generateEsperantoOptions: function(moduleName) {
     var providedOptions = this.esperantoOptions || {};
     var options = {};
 
     if (this.format === 'namedAmd') {
-      options.amdName = moduleName;
+      options.amdName = providedOptions.modulePrefix ? this._generatePrefixedModule(providedOptions.modulePrefix, moduleName) : moduleName;
     }
 
     if (this.format === 'umd') {
